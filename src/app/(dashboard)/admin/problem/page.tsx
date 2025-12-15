@@ -182,16 +182,15 @@ export default function ProblemPage() {
     };
 
     // --- 보기(Choices) 제어 ---
-    // value의 타입을 'string | boolean | null'로 지정하여 문자열과 불리언 모두 허용
+    // [수정] 타입 명시하여 Lint 에러 방지
     const updateChoice = (index: number, field: 'content' | 'isAnswer', value: string | boolean | null) => {
         const newChoices = [...inputChoices];
 
         if (field === 'isAnswer') {
-            // 정답 체크는 기존 값을 반전(토글)시키는 방식이므로 value 값을 굳이 안 써도 됨
-            // (만약 value로 강제 지정하고 싶다면 newChoices[index].isAnswer = !!value; 로 해도 됨)
+            // 토글 방식 (다중 선택 가능)
             newChoices[index].isAnswer = !newChoices[index].isAnswer;
         } else {
-            // content는 문자열이어야 함. null이나 boolean이 들어오면 무시하거나 빈 문자열 처리
+            // content는 문자열이어야 함
             if (typeof value === 'string') {
                 newChoices[index].content = value;
             }
@@ -220,7 +219,7 @@ export default function ProblemPage() {
                 <h1 className="text-xl font-bold text-gray-900 mr-2">문제 관리</h1>
 
                 <select
-                    className="border p-2.5 rounded-xl text-sm min-w-[150px] text-gray-900 font-medium"
+                    className="border p-2.5 rounded-xl text-sm min-w-[150px] text-gray-900 font-medium bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                     value={selectedSubjectId || ""}
                     onChange={(e) => onSubjectChange(Number(e.target.value))}
                 >
@@ -229,7 +228,7 @@ export default function ProblemPage() {
                 </select>
 
                 <select
-                    className="border p-2.5 rounded-xl text-sm min-w-[120px] text-gray-900 font-medium"
+                    className="border p-2.5 rounded-xl text-sm min-w-[120px] text-gray-900 font-medium bg-white focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
                     value={selectedYear || ""}
                     onChange={(e) => onYearChange(Number(e.target.value))}
                     disabled={!selectedSubjectId}
@@ -239,7 +238,7 @@ export default function ProblemPage() {
                 </select>
 
                 <select
-                    className="border p-2.5 rounded-xl text-sm min-w-[200px] text-gray-900 font-medium"
+                    className="border p-2.5 rounded-xl text-sm min-w-[200px] text-gray-900 font-medium bg-white focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
                     value={selectedExamId || ""}
                     onChange={(e) => onExamChange(Number(e.target.value))}
                     disabled={!selectedYear}
@@ -250,7 +249,7 @@ export default function ProblemPage() {
 
                 <div className="flex-1"></div>
 
-                <button onClick={openCreate} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition font-medium">
+                <button onClick={openCreate} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition font-medium shadow-sm">
                     <Plus size={18} /> 새 문제 등록
                 </button>
             </div>
@@ -260,7 +259,8 @@ export default function ProblemPage() {
                 {problems.length === 0 ? (
                     <div className="text-center py-20 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-300">
                         <Search size={48} className="mx-auto mb-4 opacity-20" />
-                        <p>등록된 문제가 없습니다.</p>
+                        <p className="text-lg mt-2">문제가 없습니다.</p>
+                        <p className="text-sm">시험을 선택하거나 새로운 문제를 등록해주세요.</p>
                     </div>
                 ) : (
                     problems.map((p) => (
@@ -268,13 +268,13 @@ export default function ProblemPage() {
                             <div className="bg-gray-50 px-5 py-3 border-b border-gray-100 flex justify-between items-center">
                                 <span className="font-bold text-blue-700 bg-blue-100 px-3 py-1 rounded-lg text-sm">No. {p.number}</span>
                                 <div className="flex gap-2">
-                                    <button onClick={() => openUpdate(p)} className="p-2 text-gray-500 hover:text-blue-600"><Edit size={18} /></button>
-                                    <button onClick={() => onDelete(p.id)} className="p-2 text-gray-500 hover:text-red-600"><Trash2 size={18} /></button>
+                                    <button onClick={() => openUpdate(p)} className="p-2 text-gray-500 hover:text-blue-600 rounded-lg hover:bg-white transition"><Edit size={18} /></button>
+                                    <button onClick={() => onDelete(p.id)} className="p-2 text-gray-500 hover:text-red-600 rounded-lg hover:bg-white transition"><Trash2 size={18} /></button>
                                 </div>
                             </div>
                             <div className="p-6">
                                 <div className="prose prose-sm max-w-none mb-6 text-gray-900" dangerouslySetInnerHTML={{ __html: p.content }} />
-                                <div className="grid grid-cols-1 gap-2">
+                                <div className="grid grid-cols-1 gap-2 mb-4">
                                     {p.choices.map((c) => (
                                         <div key={c.number} className={`flex items-start p-3 rounded-xl border ${c.isAnswer ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100'}`}>
                                             <span className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold mr-3 ${c.isAnswer ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'}`}>{c.number}</span>
@@ -315,7 +315,7 @@ export default function ProblemPage() {
                     <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200 space-y-3">
                         <div className="flex justify-between items-center mb-2">
                             <label className="font-bold text-gray-900">보기 설정</label>
-                            <button onClick={addChoiceRow} className="text-xs bg-white border px-3 py-1.5 rounded-lg hover:bg-gray-100 font-medium text-gray-700">+ 추가</button>
+                            <button onClick={addChoiceRow} className="text-xs bg-white border px-3 py-1.5 rounded-lg hover:bg-gray-100 font-medium text-gray-700 shadow-sm">+ 추가</button>
                         </div>
                         {inputChoices.map((choice, idx) => (
                             <div key={idx} className="flex items-center gap-3">
@@ -325,12 +325,12 @@ export default function ProblemPage() {
                                 <span className="font-bold text-gray-500 w-6 text-center">{choice.number}</span>
                                 <input
                                     type="text"
-                                    className="flex-1 border p-2 rounded-lg text-sm text-gray-900 outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="flex-1 border p-2 rounded-lg text-sm text-gray-900 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                                     value={choice.content}
                                     onChange={(e) => updateChoice(idx, 'content', e.target.value)}
                                     placeholder={`보기 ${choice.number}`}
                                 />
-                                {inputChoices.length > 2 && <button onClick={() => removeChoiceRow(idx)} className="text-gray-400 hover:text-red-500"><X size={20} /></button>}
+                                {inputChoices.length > 2 && <button onClick={() => removeChoiceRow(idx)} className="text-gray-400 hover:text-red-500 transition"><X size={20} /></button>}
                             </div>
                         ))}
                     </div>
@@ -341,7 +341,7 @@ export default function ProblemPage() {
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                        <button onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl font-medium">취소</button>
+                        <button onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl font-medium transition">취소</button>
                         <button onClick={onSave} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow-sm flex items-center gap-2"><Save size={18} /> 저장</button>
                     </div>
                 </div>

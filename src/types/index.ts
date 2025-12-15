@@ -68,11 +68,13 @@ export interface LoginResult {
 export interface Question {
     id: number;
     title: string;
-    username: string; // 작성자
+    username: string;
     content: string;
     answerCount: number;
     answeredByAdmin: boolean;
     createdAt: string;
+
+    problemId: number;
 }
 
 // [신규] 답변 (Answer)
