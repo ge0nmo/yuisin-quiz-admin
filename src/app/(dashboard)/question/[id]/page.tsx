@@ -68,7 +68,7 @@ export default function QuestionDetailPage({ params }: { params: Promise<{ id: s
         try {
             await deleteQuestion(questionId);
             alert("질문이 삭제되었습니다.");
-            router.replace("/admin/question");
+            router.replace("/question");
         } catch (e) { alert("질문 삭제 실패"); }
     };
 

@@ -70,7 +70,7 @@ export default function QuestionListPage() {
                         questions.map((q) => (
                             <tr
                                 key={q.id}
-                                onClick={() => router.push(`/admin/question/${q.id}`)}
+                                onClick={() => router.push(`/question/${q.id}`)}
                                 className="hover:bg-gray-50 transition cursor-pointer"
                             >
                                 <td className="p-4 text-center text-gray-500">{q.id}</td>

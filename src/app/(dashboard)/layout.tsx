@@ -1,23 +1,33 @@
 "use client";
 
+// (dashboard)/layout.tsx
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { MessageCircleQuestion } from "lucide-react";
+import { useState, useEffect } from "react";
+import { cn } from "@/src/utils/cn";
 import {
     LayoutDashboard,
     Book,
     BookOpen,
     FileQuestion,
+    MessageCircleQuestion,
     LogOut,
     Menu
 } from "lucide-react";
-import { cn } from "@/src/utils/cn";
-import { useState } from "react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    // [보안 추가] 토큰이 없으면 로그인 페이지로 강제 리다이렉트
+    useEffect(() => {
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+            router.replace("/login");
+        }
+    }, [router]);
 
     const handleLogout = () => {
         if (confirm("로그아웃 하시겠습니까?")) {
@@ -29,11 +39,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     };
 
     const menuItems = [
-        { name: "대시보드", href: "/admin", icon: LayoutDashboard }, // 메인
-        { name: "과목 관리", href: "/admin/subject", icon: Book },   // 추가됨
-        { name: "시험 관리", href: "/admin/exam", icon: BookOpen },
-        { name: "문제 관리", href: "/admin/problem", icon: FileQuestion },
-        { name: "질문 게시판", href: "/admin/question", icon: MessageCircleQuestion },
+        { name: "대시보드", href: "/", icon: LayoutDashboard },
+        { name: "과목 관리", href: "/subject", icon: Book },
+        { name: "시험 관리", href: "/exam", icon: BookOpen },
+        { name: "문제 관리", href: "/problem", icon: FileQuestion },
+        { name: "질문 게시판", href: "/question", icon: MessageCircleQuestion },
     ];
 
     return (
@@ -50,16 +60,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <div className="flex items-center gap-2 font-bold text-xl text-blue-600 overflow-hidden whitespace-nowrap">
                         <LayoutDashboard size={28} />
                         <span className={cn("transition-all", !isSidebarOpen && "hidden")}>
-              Quiz Admin
-            </span>
+                            관리자 페이지
+                        </span>
                     </div>
                 </div>
 
                 {/* 메뉴 리스트 */}
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                     {menuItems.map((item) => {
-                        // 정확히 일치하거나 하위 경로일 때 활성화
-                        const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+                        // [핵심] 대시보드('/')와 다른 하위 메뉴 구분 로직
+                        const isActive = item.href === "/"
+                            ? pathname === "/"
+                            : pathname.startsWith(item.href);
 
                         return (
                             <Link
@@ -76,8 +88,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             >
                                 <item.icon size={22} />
                                 <span className={cn("whitespace-nowrap transition-all", !isSidebarOpen && "hidden")}>
-                  {item.name}
-                </span>
+                                    {item.name}
+                                </span>
                             </Link>
                         );
                     })}
@@ -95,15 +107,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     >
                         <LogOut size={22} />
                         <span className={cn("whitespace-nowrap", !isSidebarOpen && "hidden")}>
-              로그아웃
-            </span>
+                            로그아웃
+                        </span>
                     </button>
                 </div>
             </aside>
 
             {/* 메인 컨텐츠 영역 */}
             <div className={cn("flex-1 flex flex-col transition-all duration-300", isSidebarOpen ? "ml-64" : "ml-20")}>
-                {/* 상단 헤더 (모바일 메뉴 토글 등) */}
+                {/* 상단 헤더 */}
                 <header className="h-16 bg-white border-b flex items-center px-6 shadow-sm sticky top-0 z-10">
                     <button
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -111,7 +123,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     >
                         <Menu size={20} />
                     </button>
-                    <h2 className="font-semibold text-gray-700">관리자 시스템</h2>
+                    <h2 className="font-semibold text-gray-700"></h2>
                 </header>
 
                 {/* 페이지 컨텐츠 */}

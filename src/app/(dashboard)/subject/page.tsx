@@ -1,5 +1,7 @@
 "use client";
 
+// subject/page.tsx
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Edit } from "lucide-react";
@@ -31,12 +33,11 @@ export default function SubjectPage() {
         loadSubjects();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-    // ↑ 위 주석은 "이 useEffect는 정말로 최초 1회만 실행할 거니까 경고 끄라"는 명령어입니다.
 
     const goToExamPage = (subject: Subject) => {
         sessionStorage.setItem("subjectId", String(subject.id));
         sessionStorage.setItem("subjectName", subject.name);
-        router.push("/admin/exam");
+        router.push("/exam");
     };
 
     const openCreateModal = () => {

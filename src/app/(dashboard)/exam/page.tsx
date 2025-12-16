@@ -89,7 +89,7 @@ export default function ExamPage() {
         sessionStorage.setItem("examId", String(exam.id));
         sessionStorage.setItem("examName", exam.name);
         sessionStorage.setItem("examYear", String(exam.year));
-        router.push("/admin/problem");
+        router.push("/problem");
     };
 
     const openCreateModal = () => {

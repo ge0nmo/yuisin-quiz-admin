@@ -1,3 +1,5 @@
+// login/page.tsx
+
 "use client";
 
 import { useState } from "react";
@@ -34,7 +36,7 @@ export default function LoginPage() {
             localStorage.setItem("accessToken", accessToken);
             localStorage.setItem("userRole", role);
 
-            router.push("/admin"); // 대시보드로 이동
+            router.push("/"); // 대시보드로 이동
 
         } catch (err: any) {
             console.error("로그인 에러:", err);

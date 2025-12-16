@@ -1,11 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+    // [추가] 도커 빌드를 위해 필수인 설정
+    output: "standalone",
+
     async rewrites() {
         return [
             {
                 source: "/api/:path*",
-                // .env.local에 있는 값을 읽어옵니다. 없으면 기본값 localhost:8080
                 destination: `${process.env.SOURCE_API_URL || 'http://localhost:8080'}/api/:path*`,
             },
         ];
