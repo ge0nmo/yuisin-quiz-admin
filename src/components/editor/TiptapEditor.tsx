@@ -33,7 +33,7 @@ export default function TiptapEditor({ value, onChange, placeholder, minHeight =
         },
         editorProps: {
             attributes: {
-                class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none'
+                class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none text-gray-900'
             },
             // ▼▼▼ [핵심 추가 1] 붙여넣기(Paste) 핸들링 ▼▼▼
             handlePaste: (view, event, slice) => {
