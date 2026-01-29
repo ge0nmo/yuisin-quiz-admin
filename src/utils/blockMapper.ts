@@ -3,46 +3,63 @@ import { Block } from '@/src/types';
 
 /**
  * Tiptap JSON -> Backend Block List 변환 (Deep Parsing)
- * 문단 내부에 텍스트와 이미지가 섞여 있어도 순서대로 분리합니다.
+ * [수정] 문단(Paragraph)이 바뀔 때마다 자동으로 줄바꿈(\n)을 추가합니다.
  */
 export const tiptapToBackendBlocks = (json: JSONContent | null | undefined): Block[] => {
     const blocks: Block[] = [];
 
     if (!json || !json.content) return blocks;
 
-    json.content.forEach((node) => {
-        // 1. 이미지 노드 처리
+    json.content.forEach((node, nodeIndex) => {
+        // 1. 이미지 노드 처리 (기존 동일)
         if (node.type === 'image' && node.attrs?.src) {
-            // [핵심 수정] URL에서 ? 뒤에 있는 서명(Signature) 제거
-            // 예: image.png?signature=abc -> image.png
             const cleanUrl = node.attrs.src.split('?')[0];
-
             blocks.push({
                 type: 'image',
-                src: cleanUrl, // 깨끗한 URL만 DB에 저장
+                src: cleanUrl,
                 alt: node.attrs.alt || '',
             });
         }
+        // 2. 문단(paragraph) 또는 제목(heading) 처리
         else if (node.type === 'paragraph' || node.type === 'heading') {
+
+            // ▼▼▼ [핵심 수정] 문단 시작 시, 직전 블록이 텍스트라면 줄바꿈(\n) 추가 ▼▼▼
+            // 첫 번째 문단이 아니고, 직전 블록이 텍스트라면 -> 이어쓰지 말고 줄을 바꿈
+            if (blocks.length > 0) {
+                const lastBlock = blocks[blocks.length - 1];
+                if (lastBlock.type === 'text') {
+                    // 예: "1문단" + "\n" -> "2문단 시작"
+                    lastBlock.text += "\n";
+                }
+            }
+            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
             if (node.content) {
                 node.content.forEach((inner) => {
+                    // 2-1. 문단 내부 이미지 (기존 동일)
                     if (inner.type === 'image' && inner.attrs?.src) {
-                        // [핵심 수정] 문단 내부 이미지도 동일하게 처리
                         const cleanUrl = inner.attrs.src.split('?')[0];
-
                         blocks.push({
                             type: 'image',
                             src: cleanUrl,
                             alt: inner.attrs.alt || '',
                         });
                     }
+                    // 2-2. 텍스트 처리
                     else if (inner.type === 'text' && inner.text) {
-                        // 텍스트 병합 로직 (기존 유지)
                         const lastBlock = blocks[blocks.length - 1];
+                        // 직전 블록이 텍스트면 합침 (위에서 넣은 \n 뒤에 붙음)
                         if (lastBlock && lastBlock.type === 'text') {
                             lastBlock.text += inner.text;
                         } else {
                             blocks.push({ type: 'text', text: inner.text });
+                        }
+                    }
+                    // 2-3. [추가] Shift+Enter (HardBreak) 처리
+                    else if (inner.type === 'hardBreak') {
+                        const lastBlock = blocks[blocks.length - 1];
+                        if (lastBlock && lastBlock.type === 'text') {
+                            lastBlock.text += "\n";
                         }
                     }
                 });
@@ -53,22 +70,32 @@ export const tiptapToBackendBlocks = (json: JSONContent | null | undefined): Blo
     return blocks;
 };
 
-/**
- * Backend Block List -> Tiptap HTML String
- * (기존 코드 유지)
- */
+// ... backendBlocksToHtml 기존 코드 유지 ...
 export const backendBlocksToHtml = (blocks: Block[]): string => {
     if (!blocks || blocks.length === 0) return '<p></p>';
 
-    return blocks
-        .map((b) => {
+    let html = '';
+    let textBuffer = '';
+
+    blocks.forEach((b) => {
+        if (b.type === 'text' && b.text) {
+            textBuffer += b.text;
+        } else {
+            if (textBuffer) {
+                // 줄바꿈(\n)을 <br>로 변환하지 않아도 whitespace-pre-wrap 덕분에 보이지만,
+                // 에디터 로딩 시 정확한 줄바꿈을 위해 replace 처리
+                html += `<p>${textBuffer.replace(/\n/g, '<br>')}</p>`;
+                textBuffer = '';
+            }
             if (b.type === 'image') {
-                return `<img src="${b.src}" alt="${b.alt || ''}">`;
+                html += `<img src="${b.src}" alt="${b.alt || ''}">`;
             }
-            if (b.type === 'text') {
-                return `<p>${b.text}</p>`;
-            }
-            return '';
-        })
-        .join('');
+        }
+    });
+
+    if (textBuffer) {
+        html += `<p>${textBuffer.replace(/\n/g, '<br>')}</p>`;
+    }
+
+    return html;
 };
