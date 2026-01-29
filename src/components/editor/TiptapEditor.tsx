@@ -1,117 +1,131 @@
 "use client";
 
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import Image from "@tiptap/extension-image";
-import Link from "@tiptap/extension-link";
-import {
-    Bold, Italic, List, ListOrdered, Image as ImageIcon,
-    Heading1, Heading2, Quote, Undo, Redo
-} from "lucide-react";
-import { cn } from "@/src/utils/cn";
+import { useEditor, EditorContent, JSONContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import ImageExtension from '@tiptap/extension-image';
+import { useEffect, useCallback } from 'react';
+import { ImageIcon } from 'lucide-react';
+import { uploadFile } from '@/src/services/file';
 
 interface TiptapEditorProps {
-    value: string;
-    onChange: (html: string) => void;
+    value?: string;
+    onChange?: (json: JSONContent) => void;
     placeholder?: string;
     minHeight?: string;
 }
 
-export default function TiptapEditor({
-                                         value,
-                                         onChange,
-                                         placeholder = "내용을 입력하세요...",
-                                         minHeight = "300px"
-                                     }: TiptapEditorProps) {
+export default function TiptapEditor({ value, onChange, placeholder, minHeight = "200px" }: TiptapEditorProps) {
 
     const editor = useEditor({
         extensions: [
             StarterKit,
-            Image.configure({ inline: true }),
-            Link.configure({ openOnClick: false }),
-            Placeholder.configure({ placeholder }),
+            ImageExtension.configure({
+                inline: true,
+                allowBase64: false,
+            }),
         ],
-        content: value,
+        content: value || '<p></p>',
+        immediatelyRender: false,
+        onUpdate: ({ editor }) => {
+            if (onChange) {
+                onChange(editor.getJSON());
+            }
+        },
         editorProps: {
             attributes: {
-                class: `prose prose-sm sm:prose max-w-none focus:outline-none p-4 min-h-[${minHeight}] text-gray-900`, // text-gray-900 추가됨
+                class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none'
             },
-        },
-        onUpdate: ({ editor }) => {
-            onChange(editor.getHTML());
-        },
-        // [핵심 수정] SSR 환경에서의 하이드레이션 불일치 방지
-        immediatelyRender: false,
+            // ▼▼▼ [핵심 추가 1] 붙여넣기(Paste) 핸들링 ▼▼▼
+            handlePaste: (view, event, slice) => {
+                const items = Array.from(event.clipboardData?.items || []);
+                const imageItem = items.find(item => item.type.startsWith('image'));
+
+                if (imageItem) {
+                    event.preventDefault(); // 기본 붙여넣기 막음
+                    const file = imageItem.getAsFile();
+                    if (file) {
+                        handleImageUpload(file, view); // 업로드 함수 호출
+                    }
+                    return true; // 이벤트 처리 완료됨을 알림
+                }
+                return false; // 텍스트 등은 기본 동작 수행
+            },
+            // ▼▼▼ [핵심 추가 2] 드래그앤드롭(Drop) 핸들링 ▼▼▼
+            handleDrop: (view, event, slice, moved) => {
+                if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
+                    const file = event.dataTransfer.files[0];
+                    if (file.type.startsWith('image')) {
+                        event.preventDefault();
+                        handleImageUpload(file, view);
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
     });
 
-    if (!editor) return null;
+    // [공통 함수] 이미지 업로드 및 에디터 삽입 로직 분리
+    const handleImageUpload = async (file: File, view: any) => {
+        try {
+            // 1. 서버 업로드
+            const url = await uploadFile(file);
 
-    // 툴바 버튼 스타일
-    const btnClass = (isActive: boolean = false) =>
-        cn(
-            "p-2 rounded hover:bg-gray-100 transition-colors",
-            isActive ? "bg-blue-50 text-blue-600" : "text-gray-600"
-        );
+            // 2. 현재 커서 위치에 이미지 노드 삽입
+            const { schema } = view.state;
+            const node = schema.nodes.image.create({ src: url });
+            const transaction = view.state.tr.replaceSelectionWith(node);
+            view.dispatch(transaction);
 
-    const addImage = () => {
-        const url = window.prompt("이미지 URL을 입력하세요 (추후 파일 업로드로 교체 가능)");
-        if (url) {
-            editor.chain().focus().setImage({ src: url }).run();
+        } catch (error) {
+            console.error("Image upload failed via paste/drop:", error);
+            alert("이미지 업로드에 실패했습니다.");
         }
     };
 
+    const addImage = useCallback(() => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+
+        input.onchange = async (e: Event) => {
+            const target = e.target as HTMLInputElement;
+            const file = target.files?.[0];
+
+            if (file && editor) {
+                // 위에서 만든 공통 로직 재사용 불가(view 객체가 없으므로) -> 기존 방식대로 chain 사용
+                try {
+                    const url = await uploadFile(file);
+                    editor.chain().focus().setImage({ src: url }).run();
+                } catch (error) {
+                    console.error("Image upload failed:", error);
+                    alert("이미지 업로드 실패");
+                }
+            }
+        };
+        input.click();
+    }, [editor]);
+
+    if (!editor) return null;
+
     return (
-        <div className="border rounded-lg overflow-hidden border-gray-200 bg-white shadow-sm flex flex-col h-full">
-            {/* 툴바 */}
-            <div className="flex items-center gap-1 bg-white border-b p-2 flex-wrap sticky top-0 z-10">
-                <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={btnClass(editor.isActive("bold"))}>
-                    <Bold size={18} />
-                </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={btnClass(editor.isActive("italic"))}>
-                    <Italic size={18} />
-                </button>
-
-                <div className="w-px h-5 bg-gray-200 mx-1" />
-
-                <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={btnClass(editor.isActive("heading", { level: 1 }))}>
-                    <Heading1 size={18} />
-                </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={btnClass(editor.isActive("heading", { level: 2 }))}>
-                    <Heading2 size={18} />
-                </button>
-
-                <div className="w-px h-5 bg-gray-200 mx-1" />
-
-                <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={btnClass(editor.isActive("bulletList"))}>
-                    <List size={18} />
-                </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={btnClass(editor.isActive("orderedList"))}>
-                    <ListOrdered size={18} />
-                </button>
-                <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={btnClass(editor.isActive("blockquote"))}>
-                    <Quote size={18} />
-                </button>
-
-                <div className="w-px h-5 bg-gray-200 mx-1" />
-
-                <button type="button" onClick={addImage} className={btnClass()}>
-                    <ImageIcon size={18} />
-                </button>
-
-                <div className="flex-1" /> {/* 우측 정렬을 위한 여백 */}
-
-                <button type="button" onClick={() => editor.chain().focus().undo().run()} className={btnClass()}>
-                    <Undo size={18} />
-                </button>
-                <button type="button" onClick={() => editor.chain().focus().redo().run()} className={btnClass()}>
-                    <Redo size={18} />
+        <div className="border border-gray-300 rounded-lg overflow-hidden bg-white flex flex-col">
+            <div className="bg-gray-50 border-b border-gray-200 p-2 flex gap-2">
+                <button
+                    onClick={addImage}
+                    className="p-1.5 hover:bg-gray-200 rounded text-gray-600 flex items-center gap-1 text-xs font-medium"
+                    type="button"
+                >
+                    <ImageIcon size={16} /> 이미지 추가
                 </button>
             </div>
 
-            {/* 에디터 본문 영역 */}
-            <div className="flex-1 overflow-y-auto cursor-text bg-gray-50/30" onClick={() => editor.chain().focus().run()}>
-                <EditorContent editor={editor} style={{ minHeight }} />
+            <div
+                className="p-4 cursor-text overflow-y-auto"
+                style={{ minHeight }}
+                onClick={() => editor.chain().focus().run()}
+            >
+                <EditorContent editor={editor} />
             </div>
         </div>
     );

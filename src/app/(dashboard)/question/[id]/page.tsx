@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { getQuestionDetail, deleteQuestion } from "@/src/services/question";
 import { getAnswers, saveAnswer, deleteAnswer, updateAnswer } from "@/src/services/answer";
-import { getProblemDetail } from "@/src/services/problem";
+import { getProblemDetailV2 } from "@/src/services/problem";
 import { Question, Answer, Problem } from "@/src/types";
 
 // 분리한 컴포넌트 임포트
@@ -55,7 +55,7 @@ export default function QuestionDetailPage({ params }: { params: Promise<{ id: s
     const handleViewProblem = async () => {
         if (!question?.problemId) return alert("연결된 문제 정보가 없습니다.");
         try {
-            const problemData = await getProblemDetail(question.problemId);
+            const problemData = await getProblemDetailV2(question.problemId);
             setRelatedProblem(problemData);
             setIsProblemModalOpen(true);
         } catch (e) {

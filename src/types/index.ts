@@ -1,3 +1,4 @@
+//src/types/index.ts
 // 1. 공통 응답 구조 (백엔드의 GlobalResponse와 매칭)
 export interface GlobalResponse<T> {
     resultCode?: string;
@@ -39,10 +40,10 @@ export interface Choice {
 // 5. 문제 (Problem - 조회용)
 export interface Problem {
     id: number;
-    examId: number;
+    examId?: number; // V2 API에서 미포함될 수 있으므로 Optional 변경
     number: number;
-    content: string;     // HTML content
-    explanation: string; // HTML content
+    content: Block[];      // HTML content -> Block[]
+    explanation: Block[]; // HTML content -> Block[]
     choices: Choice[];
 }
 
@@ -83,4 +84,24 @@ export interface Answer {
     username: string; // 답변자 (관리자)
     content: string;
     createdAt: string;
+}
+
+export type BlockType = 'text' | 'image';
+
+export interface Block {
+    type: BlockType;
+    text?: string; // type === 'text'
+    src?: string;  // type === 'image'
+    alt?: string;
+}
+
+// ProblemV2Response 제거 (Problem으로 통합)
+
+// V2 Request
+export interface ProblemSaveV2Request {
+    id?: number;
+    number: number;
+    content: Block[];
+    explanation: Block[];
+    choices: Choice[];
 }

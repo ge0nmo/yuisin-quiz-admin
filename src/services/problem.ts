@@ -1,36 +1,27 @@
+// src/services/problem.ts
 import { fetcher } from "./fetcher";
-import { Problem, ProblemRequest, GlobalResponse } from "@/src/types";
+import { Problem, ProblemSaveV2Request, GlobalResponse } from "@/src/types";
 
-// 백엔드 컨트롤러 경로: /api/admin/problem
-const DOMAIN = "/admin/problem";
+const DOMAIN = "/v2/admin/problem"; // V2 경로
 
-// 1. 문제 목록 조회
-// GET /api/admin/problem?examId={id}
-export const getProblems = async (examId: number): Promise<Problem[]> => {
+export const getProblemsV2 = async (examId: number): Promise<Problem[]> => {
     const res = await fetcher<GlobalResponse<Problem[]>>(`${DOMAIN}?examId=${examId}`);
     return res.data;
 };
 
-// 2. 문제 생성/수정
-export const saveProblem = (examId: number, data: ProblemRequest) => {
-    const isUpdate = !!data.id;
-    const method = isUpdate ? "PATCH" : "POST";
-    const url = `${DOMAIN}?examId=${examId}`;
-
-    return fetcher(url, {
-        method,
-        body: JSON.stringify(data),
-    });
-};
-
-// 3. 문제 삭제
-// DELETE /api/admin/problem/{id}
-export const deleteProblem = (id: number) =>
-    fetcher<void>(`${DOMAIN}/${id}`, { method: "DELETE" });
-
-// [추가] 4. 문제 단건 상세 조회 (모달용)
-// GET /api/admin/problem/{id}
-export const getProblemDetail = async (id: number): Promise<Problem> => {
+export const getProblemDetailV2 = async (id: number): Promise<Problem> => {
     const res = await fetcher<GlobalResponse<Problem>>(`${DOMAIN}/${id}`);
     return res.data;
 };
+
+export const saveProblemV2 = async (examId: number, data: ProblemSaveV2Request) => {
+    const res = await fetcher<GlobalResponse<number>>(`${DOMAIN}?examId=${examId}`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+    return res.data; // 저장된 ID 반환
+};
+
+// 기존 deleteProblem 등은 유지
+export const deleteProblem = (id: number) =>
+    fetcher<void>(`/api/admin/problem/${id}`, { method: "DELETE" });

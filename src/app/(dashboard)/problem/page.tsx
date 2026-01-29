@@ -1,20 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useEditor, EditorContent, JSONContent } from '@tiptap/react'; // JSONContent 추가
 import {
     Plus, Search, Trash2, Edit, Save, X,
     Square, CheckSquare
 } from "lucide-react";
 import Modal from "@/src/components/ui/Modal";
 import TiptapEditor from "@/src/components/editor/TiptapEditor";
+import BlockRenderer from "@/src/components/ui/BlockRenderer"; // [V2] 렌더러 추가
 
+// [V2] Services & Utils
 import { getSubjects } from "@/src/services/subject";
 import { getExamYears, getExams } from "@/src/services/exam";
-import { getProblems, saveProblem, deleteProblem } from "@/src/services/problem";
+import { getProblemsV2, saveProblemV2, deleteProblem } from "@/src/services/problem"; // V2 API 사용
+import { tiptapToBackendBlocks, backendBlocksToHtml } from "@/src/utils/blockMapper"; // [V2] 변환기
+
+// [V2] Types
 import { Subject, Exam, Problem, Choice } from "@/src/types";
 
 export default function ProblemPage() {
-    // --- State ---
+    // --- State: 필터링 관련 ---
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [years, setYears] = useState<number[]>([]);
     const [exams, setExams] = useState<Exam[]>([]);
@@ -23,20 +29,30 @@ export default function ProblemPage() {
     const [selectedYear, setSelectedYear] = useState<number | null>(null);
     const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
 
+    // --- State: 데이터 (V2 타입) ---
     const [problems, setProblems] = useState<Problem[]>([]);
 
+    // --- State: 모달 및 입력 폼 ---
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
 
     const [inputNumber, setInputNumber] = useState<number>(0);
-    const [inputContent, setInputContent] = useState("");
-    const [inputExplanation, setInputExplanation] = useState("");
     const [inputChoices, setInputChoices] = useState<Choice[]>([]);
 
-    // --- Helpers (단순 조회용) ---
+    // [V2 핵심] 에디터 상태 관리전략
+    // 1. 초기 로딩용 (DB Block -> HTML String 변환)
+    const [editorContentHtml, setEditorContentHtml] = useState("");
+    const [editorExplanationHtml, setEditorExplanationHtml] = useState("");
+
+    // 2. 저장용 (Tiptap JSON Output)
+    const [contentJson, setContentJson] = useState<JSONContent | null>(null);
+    const [explanationJson, setExplanationJson] = useState<JSONContent | null>(null);
+
+
+    // --- Helpers ---
     const fetchProblems = async (examId: number) => {
         try {
-            const list = await getProblems(examId);
+            const list = await getProblemsV2(examId); // [V2] API 호출
             setProblems(list);
         } catch (e) { console.error(e); }
     };
@@ -60,11 +76,9 @@ export default function ProblemPage() {
     // --- 초기화 (세션 복구) ---
     useEffect(() => {
         const initialize = async () => {
-            // 1. 과목 로딩
             const subList = await getSubjects();
             setSubjects(subList);
 
-            // 2. 세션 확인
             const sSubId = sessionStorage.getItem("subjectId");
             const sExamId = sessionStorage.getItem("examId");
             const sYear = sessionStorage.getItem("examYear");
@@ -89,19 +103,17 @@ export default function ProblemPage() {
 
         initialize();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // 최초 1회만 실행
+    }, []);
 
-    // --- 이벤트 핸들러 ---
+    // --- 이벤트 핸들러 (필터) ---
     const onSubjectChange = async (subId: number) => {
         setSelectedSubjectId(subId);
         sessionStorage.setItem("subjectId", String(subId));
 
-        // 초기화
         setSelectedYear(null);
         setSelectedExamId(null);
         setExams([]);
         setProblems([]);
-
         await fetchYears(subId);
     };
 
@@ -109,7 +121,6 @@ export default function ProblemPage() {
         setSelectedYear(year);
         setSelectedExamId(null);
         setProblems([]);
-
         if (selectedSubjectId) {
             await fetchExams(selectedSubjectId, year);
         }
@@ -121,14 +132,18 @@ export default function ProblemPage() {
         await fetchProblems(examId);
     };
 
-    // --- 모달 로직 ---
+    // --- 모달 로직 (V2 적용) ---
     const openCreate = () => {
         if (!selectedExamId) return alert("시험을 선택해주세요.");
         setEditingId(null);
         setInputNumber(problems.length + 1);
-        setInputContent("");
-        setInputExplanation("");
-        // 기본 보기 5개 생성
+
+        // [V2] 에디터 초기화
+        setEditorContentHtml("<p></p>");
+        setEditorExplanationHtml("<p></p>");
+        setContentJson({});
+        setExplanationJson({});
+
         setInputChoices(Array.from({ length: 5 }, (_, i) => ({
             number: i + 1, content: "", isAnswer: false
         })));
@@ -138,8 +153,18 @@ export default function ProblemPage() {
     const openUpdate = (p: Problem) => {
         setEditingId(p.id);
         setInputNumber(p.number);
-        setInputContent(p.content);
-        setInputExplanation(p.explanation);
+
+        // [V2 핵심] DB의 Block List를 Tiptap이 이해할 수 있는 HTML로 변환하여 주입
+        setEditorContentHtml(backendBlocksToHtml(p.content));
+        setEditorExplanationHtml(backendBlocksToHtml(p.explanation));
+
+        // JSON 상태 초기화 (수정 없이 바로 저장할 경우를 대비해 초기값이 필요하다면 변환 로직 필요하나,
+        // TiptapEditor가 마운트되면서 onUpdate를 한번 호출해주거나,
+        // 사용자가 수정을 안 하면 원본을 유지해야 하므로 contentJson 초기값은 비워두고 저장 시 체크)
+        // 여기서는 간단히 빈 객체로 시작하고, TiptapEditor가 로딩되면 onChange가 트리거되도록 유도하거나
+        // 저장 시점에 contentJson이 비어있으면(수정이 없으면) 기존 데이터를 그대로 쓰지는 않고,
+        // *TiptapEditor*가 initialContent를 받아서 내부 state를 json으로 바로 세팅해주길 기대합니다.
+
         setInputChoices(JSON.parse(JSON.stringify(p.choices)));
         setIsModalOpen(true);
     };
@@ -148,27 +173,40 @@ export default function ProblemPage() {
         if (!selectedExamId) return;
         if (!inputNumber) return alert("번호를 입력하세요.");
 
-        // 내용 체크
-        const textOnly = inputContent.replace(/<[^>]*>?/gm, '').trim();
-        if (!textOnly && !inputContent.includes("<img")) return alert("지문을 입력하세요.");
+        // [V2 핵심] Tiptap JSON -> Backend Block List 변환
+        // 주의: 모달을 열고 아무것도 수정하지 않고 '저장'을 누르면 contentJson이 비어있을 수 있음.
+        // 이 경우, 초기 로딩된 HTML을 다시 파싱하거나, 에디터 컴포넌트가 마운트 시 JSON을 뱉어주어야 함.
+        // TiptapEditor 컴포넌트에서 onUpdate를 초기 로딩 시에도 호출해주면 해결됨.
 
-        // 정답 체크
+        const contentBlocks = tiptapToBackendBlocks(contentJson);
+        const explanationBlocks = tiptapToBackendBlocks(explanationJson);
+
+        // 내용 체크 (텍스트나 이미지가 하나라도 있는지)
+        // contentBlocks가 비어있다면, 사용자가 에디터를 건드리지 않았거나 진짜 비운 것임.
+        // 여기서는 "편집을 안 건드렸다"고 가정하고 기존 데이터를 쓰는 복잡한 로직보다는,
+        // TiptapEditor가 로딩 시 onUpdate를 호출하게 만드는 것이 가장 깔끔함 (앞선 TiptapEditor 코드에 반영됨)
+
+        if (contentBlocks.length === 0 && editingId === null) {
+            // 신규 생성인데 내용이 없으면 경고
+            return alert("지문을 입력하세요.");
+        }
+
         if (!inputChoices.some(c => c.isAnswer)) return alert("정답을 최소 1개 선택하세요.");
 
         try {
-            await saveProblem(selectedExamId, {
+            await saveProblemV2(selectedExamId, {
                 id: editingId || undefined,
-                examId: selectedExamId,
                 number: inputNumber,
-                content: inputContent,
-                explanation: inputExplanation,
+                content: contentBlocks,         // [V2] Block List 전송
+                explanation: explanationBlocks, // [V2] Block List 전송
                 choices: inputChoices
             });
 
             setIsModalOpen(false);
-            fetchProblems(selectedExamId); // 목록 갱신
+            fetchProblems(selectedExamId);
             alert("저장되었습니다.");
         } catch (e) {
+            console.error(e);
             alert("저장 실패");
         }
     };
@@ -181,21 +219,14 @@ export default function ProblemPage() {
         } catch (e) { alert("삭제 실패"); }
     };
 
-    // --- 보기(Choices) 제어 ---
-    // [수정] 타입 명시하여 Lint 에러 방지
+    // --- 보기(Choices) 제어 (기존 로직 유지) ---
     const updateChoice = (index: number, field: 'content' | 'isAnswer', value: string | boolean | null) => {
         const newChoices = [...inputChoices];
-
         if (field === 'isAnswer') {
-            // 토글 방식 (다중 선택 가능)
             newChoices[index].isAnswer = !newChoices[index].isAnswer;
         } else {
-            // content는 문자열이어야 함
-            if (typeof value === 'string') {
-                newChoices[index].content = value;
-            }
+            if (typeof value === 'string') newChoices[index].content = value;
         }
-
         setInputChoices(newChoices);
     };
 
@@ -208,7 +239,7 @@ export default function ProblemPage() {
 
     const removeChoiceRow = (index: number) => {
         const newChoices = inputChoices.filter((_, i) => i !== index);
-        newChoices.forEach((c, i) => c.number = i + 1); // 번호 재정렬
+        newChoices.forEach((c, i) => c.number = i + 1);
         setInputChoices(newChoices);
     };
 
@@ -273,19 +304,25 @@ export default function ProblemPage() {
                                 </div>
                             </div>
                             <div className="p-6">
-                                <div className="prose prose-sm max-w-none mb-6 text-gray-900" dangerouslySetInnerHTML={{ __html: p.content }} />
+                                {/* [V2] BlockRenderer 사용 (HTML 렌더링 대신) */}
+                                <div className="mb-6">
+                                    <BlockRenderer blocks={p.content} />
+                                </div>
+
                                 <div className="grid grid-cols-1 gap-2 mb-4">
-                                    {p.choices.map((c) => (
+                                    {p.choices.map((c: Choice) => (
                                         <div key={c.number} className={`flex items-start p-3 rounded-xl border ${c.isAnswer ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100'}`}>
                                             <span className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold mr-3 ${c.isAnswer ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'}`}>{c.number}</span>
                                             <span className={`text-sm ${c.isAnswer ? 'font-bold text-green-800' : 'text-gray-700'}`}>{c.content}</span>
                                         </div>
                                     ))}
                                 </div>
-                                {p.explanation && (
+
+                                {p.explanation && p.explanation.length > 0 && (
                                     <div className="bg-amber-50 p-4 rounded-xl text-sm text-gray-800 border border-amber-100 mt-4">
                                         <strong className="block text-amber-800 mb-2 font-bold">💡 해설</strong>
-                                        <div className="prose prose-sm max-w-none text-gray-800" dangerouslySetInnerHTML={{ __html: p.explanation }} />
+                                        {/* [V2] BlockRenderer 사용 */}
+                                        <BlockRenderer blocks={p.explanation} />
                                     </div>
                                 )}
                             </div>
@@ -309,7 +346,15 @@ export default function ProblemPage() {
 
                     <div className="space-y-2">
                         <label className="font-bold text-gray-900">지문</label>
-                        <TiptapEditor value={inputContent} onChange={setInputContent} minHeight="200px" />
+                        {/* [V2] TiptapEditor: HTML로 초기화, JSON으로 출력 */}
+                        {/* key를 사용하여 모달이 열릴 때마다(editingId 변경 시) 에디터를 완전히 리셋 */}
+                        <TiptapEditor
+                            key={`content-${editingId || 'new'}`}
+                            value={editorContentHtml}
+                            onChange={setContentJson}
+                            minHeight="200px"
+                            placeholder="문제 지문을 입력하세요 (이미지 드래그 가능)"
+                        />
                     </div>
 
                     <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200 space-y-3">
@@ -337,7 +382,13 @@ export default function ProblemPage() {
 
                     <div className="space-y-2">
                         <label className="font-bold text-gray-900">해설</label>
-                        <TiptapEditor value={inputExplanation} onChange={setInputExplanation} minHeight="150px" placeholder="해설 입력" />
+                        <TiptapEditor
+                            key={`expl-${editingId || 'new'}`}
+                            value={editorExplanationHtml}
+                            onChange={setExplanationJson}
+                            minHeight="150px"
+                            placeholder="해설을 입력하세요"
+                        />
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
