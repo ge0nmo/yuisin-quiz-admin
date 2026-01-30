@@ -1,3 +1,4 @@
+//src/types/index.ts
 // 1. 공통 응답 구조 (백엔드의 GlobalResponse와 매칭)
 export interface GlobalResponse<T> {
     resultCode?: string;
@@ -39,10 +40,10 @@ export interface Choice {
 // 5. 문제 (Problem - 조회용)
 export interface Problem {
     id: number;
-    examId: number;
+    examId?: number; // V2 API에서 미포함될 수 있으므로 Optional 변경
     number: number;
-    content: string;     // HTML content
-    explanation: string; // HTML content
+    content: Block[];      // HTML content -> Block[]
+    explanation: Block[]; // HTML content -> Block[]
     choices: Choice[];
 }
 
@@ -62,6 +63,12 @@ export interface LoginResult {
     email: string;
     role: "ADMIN" | "USER"; // Enum 처럼 사용
     accessToken: string;
+    refreshToken: string;
+}
+
+export interface TokenResponse {
+    accessToken: string;
+    refreshToken: string;
 }
 
 // [신규] 질문 (Question)
@@ -83,4 +90,59 @@ export interface Answer {
     username: string; // 답변자 (관리자)
     content: string;
     createdAt: string;
+}
+
+export interface TextSpan {
+    text: string;
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    strikethrough?: boolean;
+    color?: string;
+    backgroundColor?: string;
+}
+
+export type BlockType = 'text' | 'image' | 'list' | 'listItem';
+
+export interface BaseBlock {
+    type: BlockType;
+    align?: 'left' | 'center' | 'right' | 'justify';
+}
+
+export interface TextBlock extends BaseBlock {
+    type: 'text';
+    text?: string;
+    spans?: TextSpan[];
+    tag?: 'p' | 'h1' | 'h2' | 'h3' | 'blockquote'; // Heading level support
+    listing?: 'bullet' | 'ordered'; // [Legacy] Support for old list format
+}
+
+export interface ImageBlock extends BaseBlock {
+    type: 'image';
+    src: string;
+    alt?: string;
+}
+
+export interface ListBlock extends BaseBlock {
+    type: 'list';
+    ordered: boolean;
+    children: ListItemBlock[];
+}
+
+export interface ListItemBlock extends BaseBlock {
+    type: 'listItem';
+    children: Block[]; // Can contain TextBlocks or nested ListBlocks
+}
+
+export type Block = TextBlock | ImageBlock | ListBlock | ListItemBlock;
+
+// ProblemV2Response 제거 (Problem으로 통합)
+
+// V2 Request
+export interface ProblemSaveV2Request {
+    id?: number;
+    number: number;
+    content: Block[];
+    explanation: Block[];
+    choices: Choice[];
 }
