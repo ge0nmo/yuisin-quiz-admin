@@ -141,8 +141,10 @@ export default function ProblemPage() {
         // [V2] 에디터 초기화
         setEditorContentHtml("<p></p>");
         setEditorExplanationHtml("<p></p>");
-        setContentJson({});
-        setExplanationJson({});
+        setEditorContentHtml("<p></p>");
+        setEditorExplanationHtml("<p></p>");
+        setContentJson(null);
+        setExplanationJson(null);
 
         setInputChoices(Array.from({ length: 5 }, (_, i) => ({
             number: i + 1, content: "", isAnswer: false
@@ -158,12 +160,10 @@ export default function ProblemPage() {
         setEditorContentHtml(backendBlocksToHtml(p.content));
         setEditorExplanationHtml(backendBlocksToHtml(p.explanation));
 
-        // JSON 상태 초기화 (수정 없이 바로 저장할 경우를 대비해 초기값이 필요하다면 변환 로직 필요하나,
-        // TiptapEditor가 마운트되면서 onUpdate를 한번 호출해주거나,
-        // 사용자가 수정을 안 하면 원본을 유지해야 하므로 contentJson 초기값은 비워두고 저장 시 체크)
-        // 여기서는 간단히 빈 객체로 시작하고, TiptapEditor가 로딩되면 onChange가 트리거되도록 유도하거나
-        // 저장 시점에 contentJson이 비어있으면(수정이 없으면) 기존 데이터를 그대로 쓰지는 않고,
-        // *TiptapEditor*가 initialContent를 받아서 내부 state를 json으로 바로 세팅해주길 기대합니다.
+        // State 초기화: TiptapEditor가 마운트되면서 onCreate로 채워줄 것임.
+        // 이를 초기화하지 않으면 이전 문제의 데이터가 남아있을 수 있음.
+        setContentJson(null);
+        setExplanationJson(null);
 
         setInputChoices(JSON.parse(JSON.stringify(p.choices)));
         setIsModalOpen(true);

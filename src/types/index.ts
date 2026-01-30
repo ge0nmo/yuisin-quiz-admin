@@ -86,11 +86,32 @@ export interface Answer {
     createdAt: string;
 }
 
+export interface TextSpan {
+    text: string;
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    strikethrough?: boolean;
+    color?: string;
+    backgroundColor?: string;
+}
+
 export type BlockType = 'text' | 'image';
 
 export interface Block {
     type: BlockType;
-    text?: string; // type === 'text'
+    // [Legacy] for backward compatibility or simple text
+    text?: string;
+    // [New] for rich text support
+    spans?: TextSpan[];
+
+    // [New] Style properties for block
+    align?: 'left' | 'center' | 'right' | 'justify';
+    indents?: number; // optional indentation level
+
+    // [New] List properties (specific to TextBlock generally)
+    listing?: 'bullet' | 'ordered';
+
     src?: string;  // type === 'image'
     alt?: string;
 }
