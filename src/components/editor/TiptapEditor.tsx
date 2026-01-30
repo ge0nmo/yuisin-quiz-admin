@@ -184,15 +184,16 @@ export default function TiptapEditor({ value, onChange, placeholder, minHeight =
                             className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-10"
                         />
                     </div>
-                    <button
-                        onClick={() => editor.chain().focus().toggleHighlight().run()}
-                        className={`p-1.5 rounded transition relative group ${editor.isActive('highlight') ? 'bg-yellow-100 text-yellow-700' : 'text-gray-500 hover:bg-gray-100'}`}
-                        type="button"
-                        title="하이라이트"
-                    >
-                        <Highlighter size={18} strokeWidth={2} />
-                        <div className="absolute bottom-1.5 left-2 right-2 h-1 rounded-full bg-yellow-300 opacity-50 block"></div>
-                    </button>
+                    <div className="relative flex items-center justify-center w-8 h-8 rounded hover:bg-gray-200 transition cursor-pointer overflow-hidden group" title="하이라이트">
+                        <Highlighter size={18} className="text-gray-600 group-hover:text-gray-900 z-0" />
+                        <div className="absolute bottom-1.5 left-2 right-2 h-1 rounded-full z-0 pointer-events-none" style={{ backgroundColor: editor.getAttributes('highlight')?.color || 'transparent' }}></div>
+                        <input
+                            type="color"
+                            onInput={(e) => editor.chain().focus().setHighlight({ color: (e.target as HTMLInputElement).value }).run()}
+                            value={editor.getAttributes('highlight')?.color || '#fde047'}
+                            className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                    </div>
                 </div>
                 <div className="w-px h-5 bg-gray-300 mx-1"></div>
 
