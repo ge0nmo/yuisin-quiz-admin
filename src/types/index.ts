@@ -96,25 +96,39 @@ export interface TextSpan {
     backgroundColor?: string;
 }
 
-export type BlockType = 'text' | 'image';
+export type BlockType = 'text' | 'image' | 'list' | 'listItem';
 
-export interface Block {
+export interface BaseBlock {
     type: BlockType;
-    // [Legacy] for backward compatibility or simple text
-    text?: string;
-    // [New] for rich text support
-    spans?: TextSpan[];
-
-    // [New] Style properties for block
     align?: 'left' | 'center' | 'right' | 'justify';
-    indents?: number; // optional indentation level
+}
 
-    // [New] List properties (specific to TextBlock generally)
-    listing?: 'bullet' | 'ordered';
+export interface TextBlock extends BaseBlock {
+    type: 'text';
+    text?: string;
+    spans?: TextSpan[];
+    tag?: 'p' | 'h1' | 'h2' | 'h3' | 'blockquote'; // Heading level support
+    listing?: 'bullet' | 'ordered'; // [Legacy] Support for old list format
+}
 
-    src?: string;  // type === 'image'
+export interface ImageBlock extends BaseBlock {
+    type: 'image';
+    src: string;
     alt?: string;
 }
+
+export interface ListBlock extends BaseBlock {
+    type: 'list';
+    ordered: boolean;
+    children: ListItemBlock[];
+}
+
+export interface ListItemBlock extends BaseBlock {
+    type: 'listItem';
+    children: Block[]; // Can contain TextBlocks or nested ListBlocks
+}
+
+export type Block = TextBlock | ImageBlock | ListBlock | ListItemBlock;
 
 // ProblemV2Response 제거 (Problem으로 통합)
 

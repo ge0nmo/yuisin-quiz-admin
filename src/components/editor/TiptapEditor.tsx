@@ -51,7 +51,7 @@ export default function TiptapEditor({ value, onChange, placeholder, minHeight =
             Underline,
             Highlight.configure({ multicolor: true }),
             ImageExtension.configure({
-                inline: true,
+                inline: false,
                 allowBase64: false,
             }),
         ],
@@ -69,7 +69,7 @@ export default function TiptapEditor({ value, onChange, placeholder, minHeight =
         },
         editorProps: {
             attributes: {
-                class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none text-gray-900 leading-relaxed px-2 max-w-none'
+                class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none text-gray-900 leading-relaxed px-2 max-w-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5'
             },
             handlePaste: (view, event, slice) => {
                 const items = Array.from(event.clipboardData?.items || []);

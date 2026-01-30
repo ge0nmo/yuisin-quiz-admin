@@ -1,260 +1,249 @@
 import { JSONContent } from '@tiptap/react';
-import { Block, TextSpan } from '@/src/types';
+import { Block, TextBlock, ImageBlock, ListBlock, ListItemBlock, TextSpan } from '@/src/types';
 
 /**
- * Tiptap JSON -> Backend Block List 변환 (Rich Text Supported)
- * [수정] 문단(Paragraph) 처리 시 marks를 분석하여 spans로 변환
+ * Tiptap JSON -> Backend Block List 변환 (Recursive & Nested)
  */
 export const tiptapToBackendBlocks = (json: JSONContent | null | undefined): Block[] => {
+    if (!json || !json.content) return [];
     const blocks: Block[] = [];
-
-    if (!json || !json.content) return blocks;
-
-    const processNode = (node: JSONContent, listType?: 'bullet' | 'ordered') => {
-        // 1. 이미지 노드 처리
-        if (node.type === 'image' && node.attrs?.src) {
-            const cleanUrl = node.attrs.src.split('?')[0];
-            blocks.push({
-                type: 'image',
-                src: cleanUrl,
-                alt: node.attrs.alt || '',
-                // images don't have spans
-                align: node.attrs?.textAlign // 이미지 정렬 (extension 설정 필요)
-            });
-        }
-        // 2. 리스트 컨테이너 (bulletList, orderedList)
-        else if (node.type === 'bulletList' || node.type === 'orderedList') {
-            const currentListType = node.type === 'bulletList' ? 'bullet' : 'ordered';
-            if (node.content) {
-                node.content.forEach(listItem => {
-                    // listItem 안에는 보통 paragraph가 들어있음
-                    if (listItem.content) {
-                        listItem.content.forEach(child => processNode(child, currentListType));
-                    }
-                });
-            }
-        }
-        // 3. 리스트 아이템 (listItem) - 위에서 처리되지만 혹시나 직접 올 경우
-        else if (node.type === 'listItem') {
-            if (node.content) {
-                node.content.forEach(child => processNode(child, listType));
-            }
-        }
-        // 4. 문단(paragraph) 또는 제목(heading) 처리
-        else if (node.type === 'paragraph' || node.type === 'heading') {
-
-            // 새 문단 시작 시, 직전 블록이 텍스트라면 줄바꿈 추가 (기존 로직 유지)
-            // 단, 리스트 내부라면 줄바꿈보다는 별도 블록으로 나가는게 맞음.
-            // 여기서는 리스트 처리가 들어왔으므로 "같은 리스트" 연속성은 backendBlocksToHtml에서 처리.
-            // JSON 변환 시에는 최대한 block으로 쪼개서 저장.
-
-            // 현재 문단을 처리할 temporary spans 배열
-            const currentSpans: TextSpan[] = [];
-
-            if (node.content) {
-                node.content.forEach((inner) => {
-                    // 2-1. 문단 내부 이미지 -> 텍스트 흐름을 끊고 이미지 블록 삽입
-                    if (inner.type === 'image' && inner.attrs?.src) {
-                        if (currentSpans.length > 0) {
-                            // 앞쪽 텍스트 저장
-                            appendToLastOrNewBlock(blocks, [...currentSpans], node.attrs?.textAlign, listType);
-                            currentSpans.length = 0;
-                        }
-                        const cleanUrl = inner.attrs.src.split('?')[0];
-                        blocks.push({
-                            type: 'image',
-                            src: cleanUrl,
-                            alt: inner.attrs.alt || '',
-                            align: inner.attrs?.textAlign
-                        });
-                    }
-                    // 2-2. 텍스트 처리 (Marks 파싱)
-                    else if (inner.type === 'text' && inner.text) {
-                        const span: TextSpan = { text: inner.text };
-
-                        if (inner.marks) {
-                            inner.marks.forEach(mark => {
-                                if (mark.type === 'bold') span.bold = true;
-                                if (mark.type === 'italic') span.italic = true;
-                                if (mark.type === 'strike') span.strikethrough = true;
-                                if (mark.type === 'underline') span.underline = true;
-                                if (mark.type === 'textStyle' && mark.attrs?.color) {
-                                    span.color = mark.attrs.color;
-                                }
-                                if (mark.type === 'highlight' && mark.attrs?.color) {
-                                    span.backgroundColor = mark.attrs.color;
-                                }
-                                // Tiptap's Highlight extension defaults to yellow if no color is specified, but usually adds a class or style.
-                                // If the mark exists but no color attribute, we might want a default.
-                                // However, in our configured extension we allowed multicolor. 
-                                // Ideally we check mark.attrs.color. If undefined, it might be the default yellow.
-                                if (mark.type === 'highlight' && !mark.attrs?.color) {
-                                    span.backgroundColor = '#fde047'; // tailwind yellow-300 or similar default
-                                }
-                            });
-                        }
-                        currentSpans.push(span);
-                    }
-                    // 2-3. HardBreak (Shift+Enter)
-                    else if (inner.type === 'hardBreak') {
-                        currentSpans.push({ text: "\n" });
-                    }
-                });
-            }
-
-            // 문단 처리가 끝났는데 모아둔 span이 있다면 블록에 추가
-            if (currentSpans.length > 0) {
-                appendToLastOrNewBlock(blocks, currentSpans, node.attrs?.textAlign, listType);
-            } else {
-                // 빈 문단 처리
-            }
-        }
-    };
-
-    json.content.forEach(node => processNode(node));
-
+    json.content.forEach(node => {
+        const block = processNode(node);
+        if (block) blocks.push(block);
+    });
     return blocks;
 };
 
-// Helper: 블록 리스트 관리
-const appendToLastOrNewBlock = (
-    blocks: Block[],
-    newSpans: TextSpan[],
-    align?: string,
-    listing?: 'bullet' | 'ordered'
-) => {
-    // 리스트 아이템이거나 정렬이 있거나 이미지가 끼어든 경우 등 -> 무조건 새 블록 생성하는게 속편함.
-    // 기존 로직: 텍스트 합치기.
-    // [변경] 리스트나 정렬 속성이 있다면 합치지 말고 분리해야 함.
-    // 또한 일반 텍스트라도 Block 단위로 관리하는게 Tiptap과 1:1 매핑에 유리할 수 있음.
-    // 하지만 "줄바꿈" 이슈 때문에 합쳤었음.
-    // 여기서는 "같은 속성(align, listing)"일때만 합치도록 개선하거나,
-    // 일단 간단히 "새 블록 생성" 전략으로 변경? 
-    // -> 아니면 기존 유지하되 리스트/정렬이 없으면 합치기.
+const processNode = (node: JSONContent): Block | null => {
+    if (!node.type) return null;
 
-    if (blocks.length > 0) {
-        const lastBlock = blocks[blocks.length - 1];
+    // 1. Text Block (Paragraph, Heading)
+    if (node.type === 'paragraph' || node.type === 'heading') {
+        const level = node.attrs?.level;
+        const tag = node.type === 'heading' && level ? `h${level}` : 'p';
+        const spans: TextSpan[] = [];
 
-        // *조건부 병합*: 
-        // 1. 둘 다 텍스트여야 함
-        // 2. 둘 다 리스트가 아니어야 함 (리스트 아이템은 각각 블록이어야 html 생성 시 li로 분리됨)
-        // 3. 둘 다 정렬이 없거나 같아야 함
-        const isList = !!listing || !!lastBlock.listing;
-        const isAlignDifferent = align !== lastBlock.align;
-
-        if (lastBlock.type === 'text' && !isList && !isAlignDifferent) {
-            if (!lastBlock.spans) lastBlock.spans = [];
-            // 줄바꿈 추가 (문단 구분)
-            lastBlock.spans.push({ text: "\n" });
-            lastBlock.spans.push(...newSpans);
-            return;
+        if (node.content) {
+            node.content.forEach((inner) => {
+                if (inner.type === 'text' && inner.text) {
+                    const span: TextSpan = { text: inner.text };
+                    if (inner.marks) {
+                        inner.marks.forEach(mark => {
+                            if (mark.type === 'bold') span.bold = true;
+                            if (mark.type === 'italic') span.italic = true;
+                            if (mark.type === 'strike') span.strikethrough = true;
+                            if (mark.type === 'underline') span.underline = true;
+                            if (mark.type === 'textStyle' && mark.attrs?.color) span.color = mark.attrs.color;
+                            if (mark.type === 'highlight') span.backgroundColor = mark.attrs?.color || '#fde047';
+                        });
+                    }
+                    spans.push(span);
+                } else if (inner.type === 'hardBreak') {
+                    spans.push({ text: "\n" });
+                }
+            });
         }
+
+        return {
+            type: 'text',
+            tag: tag as any,
+            align: node.attrs?.textAlign,
+            spans: spans
+        } as TextBlock;
     }
 
-    // Create new block
-    blocks.push({
-        type: 'text',
-        spans: newSpans,
-        align: align as any,
-        listing: listing
-    });
+    // 2. Image Block
+    if (node.type === 'image' && node.attrs?.src) {
+        return {
+            type: 'image',
+            src: node.attrs.src,
+            alt: node.attrs.alt || '',
+            align: node.attrs?.textAlign
+        } as ImageBlock;
+    }
+
+    // 3. List Container (Bullet / Ordered)
+    if (node.type === 'bulletList' || node.type === 'orderedList') {
+        const ordered = node.type === 'orderedList';
+        const children: ListItemBlock[] = [];
+
+        if (node.content) {
+            node.content.forEach(child => {
+                if (child.type === 'listItem') {
+                    const listItemBlock = processNode(child); // This returns a ListItemBlock
+                    if (listItemBlock && listItemBlock.type === 'listItem') {
+                        children.push(listItemBlock as ListItemBlock);
+                    }
+                }
+            });
+        }
+
+        return {
+            type: 'list',
+            ordered: ordered,
+            children: children
+        } as ListBlock;
+    }
+
+    // 4. List Item
+    if (node.type === 'listItem') {
+        const children: Block[] = [];
+        if (node.content) {
+            node.content.forEach(child => {
+                const block = processNode(child);
+                if (block) children.push(block);
+            });
+        }
+        return {
+            type: 'listItem',
+            children: children
+        } as ListItemBlock;
+    }
+
+    // 5. Blockquote - Treat as a wrapper or simple text block?
+    // User requested "nested logic", so Blockquote should ideally be a Block that contains other blocks.
+    // However, I didn't add BlockquoteBlock to types. Mapping to TextBlock with tag 'blockquote' implies plain text content.
+    // Let's stick to TextBlock for now to minimize schema changes unless critical.
+    if (node.type === 'blockquote') {
+        // Flatten content for now as we don't have Blockquote definition
+        const spans: TextSpan[] = [];
+        if (node.content) {
+            node.content.forEach(p => {
+                if (p.type === 'paragraph' && p.content) { // p inside blockquote
+                    p.content.forEach(inner => {
+                        if (inner.text) spans.push({ text: inner.text });
+                        if (inner.type === 'hardBreak') spans.push({ text: "\n" });
+                    });
+                    spans.push({ text: "\n" });
+                }
+            });
+        }
+        return {
+            type: 'text',
+            tag: 'blockquote',
+            spans: spans
+        } as TextBlock;
+    }
+
+    return null;
 };
 
+/**
+ * Backend Block structure -> HTML string for Tiptap initial load
+ */
 
-// ... backendBlocksToHtml 수정 ...
+/**
+ * Backend Block structure -> HTML string for Tiptap initial load
+ */
 export const backendBlocksToHtml = (blocks: Block[]): string => {
     if (!blocks || blocks.length === 0) return '<p></p>';
 
     let html = '';
     let currentListType: 'bullet' | 'ordered' | null = null;
 
-    blocks.forEach((b, index) => {
-        // 리스트 처리: 블록의 listing 속성을 보고 ul/ol 열기/닫기
-        const blockListing = b.listing || null;
+    blocks.forEach((block) => {
+        // Handle Legacy List (TextBlock with listing prop)
+        const isLegacyListBlock = block.type === 'text' && (block as TextBlock).listing;
+        const legacyListType = isLegacyListBlock ? (block as TextBlock).listing : null;
 
-        // 리스트 타입이 바뀌거나 끝났으면 닫기
-        if (currentListType && currentListType !== blockListing) {
+        // 1. Close list if type changed or not a list anymore
+        if (currentListType && currentListType !== legacyListType) {
             html += currentListType === 'bullet' ? '</ul>' : '</ol>';
             currentListType = null;
         }
 
-        // 새 리스트 시작
-        if (blockListing && currentListType !== blockListing) {
-            html += blockListing === 'bullet' ? '<ul>' : '<ol>';
-            currentListType = blockListing;
+        // 2. Open new list if needed
+        if (legacyListType && currentListType !== legacyListType) {
+            html += legacyListType === 'bullet' ? '<ul>' : '<ol>';
+            currentListType = legacyListType;
         }
 
-        // 내용 렌더링
-        let innerHtml = '';
-        if (b.type === 'image') {
-            // 이미지의 경우 정렬 처리
-            const style = b.align ? `style="text-align: ${b.align}; display: block;"` : '';
-            // Tiptap image extension uses just img tag usually, or div wrapper for alignment.
-            // wrapper for alignment:
-            if (b.align) {
-                innerHtml = `<div style="text-align: ${b.align}"><img src="${b.src}" alt="${b.alt || ''}"></div>`;
-            } else {
-                innerHtml = `<img src="${b.src}" alt="${b.alt || ''}">`;
-            }
+        // 3. Render Block
+        if (isLegacyListBlock) {
+            // Render as <li>
+            html += `<li>${blockToHtmlContent(block)}</li>`;
+        } else {
+            // Normal Block
+            html += blockToHtml(block);
         }
-        else if (b.type === 'text') {
-            const spans = b.spans || (b.text ? [{ text: b.text }] : []);
-            // align style
-            let pStyle = '';
-            if (b.align) pStyle += `text-align: ${b.align};`;
-            const styleAttr = pStyle ? ` style="${pStyle}"` : '';
-
-            let spansHtml = '';
-            spans.forEach(span => {
-                let text = span.text || '';
-                // Escape
-                text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                // Newline to br
-                text = text.replace(/\n/g, '<br>');
-
-                // Styles
-                let sStyle = '';
-                if (span.color) sStyle += `color: ${span.color};`;
-
-                let open = '';
-                let close = '';
-
-                if (span.backgroundColor) {
-                    open += `<mark style="background-color: ${span.backgroundColor}">`;
-                    close = `</mark>` + close;
-                }
-
-                if (sStyle) { open += `<span style="${sStyle}">`; close = `</span>` + close; }
-                if (span.bold) { open += '<strong>'; close = '</strong>' + close; }
-                if (span.italic) { open += '<em>'; close = '</em>' + close; }
-                if (span.underline) { open += '<u>'; close = '</u>' + close; }
-                if (span.strikethrough) { open += '<s>'; close = '</s>' + close; }
-
-                spansHtml += `${open}${text}${close}`;
-            });
-
-            if (blockListing) {
-                innerHtml = `<li${styleAttr}>${spansHtml}</li>`; // 리스트 아이템은 p 대신 li (Tiptap이 p를 안에 넣기도 하지만 li로 충분)
-                // 정확히는 Tiptap: <ul><li><p>content</p></li></ul> 구조를 선호함.
-                // 하지만 <li>content</li>로 줘도 Tiptap이 잘 파싱함.
-                // 정렬이 있다면 <li>에 style을 주거나 내부에 <p>를 둬야 함.
-                if (pStyle) {
-                    innerHtml = `<li><p style="${pStyle}">${spansHtml}</p></li>`;
-                } else {
-                    innerHtml = `<li>${spansHtml}</li>`;
-                }
-            } else {
-                innerHtml = `<p${styleAttr}>${spansHtml}</p>`;
-            }
-        }
-
-        html += innerHtml;
     });
 
-    // 마지막에 리스트가 열려있다면 닫기
+    // Close remaining list
     if (currentListType) {
         html += currentListType === 'bullet' ? '</ul>' : '</ol>';
     }
 
     return html;
+};
+
+// Helper for inner content of a block (spans to html)
+const blockToHtmlContent = (block: Block): string => {
+    if (block.type === 'text') {
+        const b = block as TextBlock;
+        // Spans to HTML
+        if (b.spans) {
+            return b.spans.map(span => {
+                let text = span.text || '';
+                text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                text = text.replace(/\n/g, '<br>');
+
+                let open = '', close = '';
+                if (span.color) { open += `<span style="color: ${span.color}">`; close = `</span>` + close; }
+                if (span.backgroundColor) { open += `<mark style="background-color: ${span.backgroundColor}">`; close = `</mark>` + close; }
+
+                if (span.bold) { open += '<strong>'; close = '</strong>' + close; }
+                if (span.italic) { open += '<em>'; close = '</em>' + close; }
+                if (span.underline) { open += '<u>'; close = '</u>' + close; }
+                if (span.strikethrough) { open += '<s>'; close = '</s>' + close; }
+
+                return `${open}${text}${close}`;
+            }).join('');
+        }
+        return '';
+    }
+    return '';
+};
+
+
+const blockToHtml = (block: Block): string => {
+    if (!block) return '';
+
+    // 1. Text Block
+    if (block.type === 'text') {
+        const b = block as TextBlock;
+        const tag = b.tag || 'p';
+        const alignStyle = b.align ? `text-align: ${b.align};` : '';
+        const styleAttr = alignStyle ? ` style="${alignStyle}"` : '';
+
+        const contentHtml = blockToHtmlContent(block) || '<br>';
+
+        return `<${tag}${styleAttr}>${contentHtml}</${tag}>`;
+    }
+
+    // 2. Image Block
+    if (block.type === 'image') {
+        const b = block as ImageBlock;
+        const style = b.align ? `style="text-align: ${b.align}"` : '';
+        if (b.align) {
+            return `<div ${style}><img src="${b.src}" alt="${b.alt || ''}"></div>`;
+        }
+        return `<img src="${b.src}" alt="${b.alt || ''}">`;
+    }
+
+    // 3. List Block
+    if (block.type === 'list') {
+        const b = block as ListBlock;
+        const tag = b.ordered ? 'ol' : 'ul';
+        const childrenHtml = b.children ? b.children.map(child => blockToHtml(child)).join('') : '';
+        return `<${tag}>${childrenHtml}</${tag}>`;
+    }
+
+    // 4. List Item Block
+    if (block.type === 'listItem') {
+        const b = block as ListItemBlock;
+        const childrenHtml = b.children ? b.children.map(child => blockToHtml(child)).join('') : '';
+        return `<li>${childrenHtml}</li>`;
+    }
+
+    return '';
 };
