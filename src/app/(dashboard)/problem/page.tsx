@@ -9,6 +9,7 @@ import {
 import Modal from "@/src/components/ui/Modal";
 import TiptapEditor from "@/src/components/editor/TiptapEditor";
 import BlockRenderer from "@/src/components/ui/BlockRenderer"; // [V2] 렌더러 추가
+import ProblemHeader from "@/src/components/problem/ProblemHeader";
 
 // [V2] Services & Utils
 import { getSubjects } from "@/src/services/subject";
@@ -246,44 +247,19 @@ export default function ProblemPage() {
     return (
         <div className="p-6 max-w-[1600px] mx-auto min-h-screen">
             {/* 필터 영역 */}
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 mb-6 flex flex-wrap items-center gap-4">
-                <h1 className="text-xl font-bold text-gray-900 mr-2">문제 관리</h1>
-
-                <select
-                    className="border p-2.5 rounded-xl text-sm min-w-[150px] text-gray-900 font-medium bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={selectedSubjectId || ""}
-                    onChange={(e) => onSubjectChange(Number(e.target.value))}
-                >
-                    <option value="">과목 선택</option>
-                    {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-
-                <select
-                    className="border p-2.5 rounded-xl text-sm min-w-[120px] text-gray-900 font-medium bg-white focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
-                    value={selectedYear || ""}
-                    onChange={(e) => onYearChange(Number(e.target.value))}
-                    disabled={!selectedSubjectId}
-                >
-                    <option value="">연도 선택</option>
-                    {years.map(y => <option key={y} value={y}>{y}년</option>)}
-                </select>
-
-                <select
-                    className="border p-2.5 rounded-xl text-sm min-w-[200px] text-gray-900 font-medium bg-white focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
-                    value={selectedExamId || ""}
-                    onChange={(e) => onExamChange(Number(e.target.value))}
-                    disabled={!selectedYear}
-                >
-                    <option value="">시험 선택</option>
-                    {exams.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                </select>
-
-                <div className="flex-1"></div>
-
-                <button onClick={openCreate} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition font-medium shadow-sm">
-                    <Plus size={18} /> 새 문제 등록
-                </button>
-            </div>
+            {/* Sticky Header */}
+            <ProblemHeader
+                subjects={subjects}
+                years={years}
+                exams={exams}
+                selectedSubjectId={selectedSubjectId}
+                selectedYear={selectedYear}
+                selectedExamId={selectedExamId}
+                onSubjectChange={onSubjectChange}
+                onYearChange={onYearChange}
+                onExamChange={onExamChange}
+                onCreate={openCreate}
+            />
 
             {/* 리스트 영역 */}
             <div className="grid gap-6">
