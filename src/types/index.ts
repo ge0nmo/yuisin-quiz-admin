@@ -63,6 +63,12 @@ export interface LoginResult {
     email: string;
     role: "ADMIN" | "USER"; // Enum 처럼 사용
     accessToken: string;
+    refreshToken: string;
+}
+
+export interface TokenResponse {
+    accessToken: string;
+    refreshToken: string;
 }
 
 // [신규] 질문 (Question)

@@ -20,6 +20,7 @@ export default function LoginPage() {
 
         // [추가] 로그인 시도 시 기존에 남아있던 만료된 토큰 삭제 (안전장치)
         localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
         localStorage.removeItem("userRole");
 
         setError("");
@@ -27,13 +28,14 @@ export default function LoginPage() {
 
         try {
             const response = await login(email, password);
-            const { accessToken, role } = response.data;
+            const { accessToken, refreshToken, role } = response.data;
 
             if (role !== "ADMIN") {
                 throw new Error("관리자 계정이 아닙니다.");
             }
 
             localStorage.setItem("accessToken", accessToken);
+            localStorage.setItem("refreshToken", refreshToken);
             localStorage.setItem("userRole", role);
 
             router.push("/"); // 대시보드로 이동
@@ -62,9 +64,9 @@ export default function LoginPage() {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
                         <div className="relative">
-              <span className="absolute left-3 top-2.5 text-gray-400">
-                <User size={18} />
-              </span>
+                            <span className="absolute left-3 top-2.5 text-gray-400">
+                                <User size={18} />
+                            </span>
                             <input
                                 type="email"
                                 className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition placeholder-gray-400 text-gray-900 bg-white"
@@ -80,9 +82,9 @@ export default function LoginPage() {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
                         <div className="relative">
-              <span className="absolute left-3 top-2.5 text-gray-400">
-                <Lock size={18} />
-              </span>
+                            <span className="absolute left-3 top-2.5 text-gray-400">
+                                <Lock size={18} />
+                            </span>
                             <input
                                 type="password"
                                 className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition placeholder-gray-400 text-gray-900 bg-white"

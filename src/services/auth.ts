@@ -3,7 +3,7 @@ import { fetcher } from "./fetcher";
 import { GlobalResponse, LoginResult } from "@/src/types";
 
 export const login = async (email: string, password: string) => {
-    return fetcher<GlobalResponse<LoginResult>>("/admin/login", {
+    return fetcher<GlobalResponse<LoginResult>>("/v1/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
     });
