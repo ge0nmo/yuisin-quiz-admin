@@ -8,8 +8,10 @@ import {
 } from "lucide-react";
 import Modal from "@/src/components/ui/Modal";
 import TiptapEditor from "@/src/components/editor/TiptapEditor";
-import BlockRenderer from "@/src/components/ui/BlockRenderer"; // [V2] 렌더러 추가
+import BlockRenderer from "@/src/components/ui/BlockRenderer";
 import ProblemHeader from "@/src/components/problem/ProblemHeader";
+import ProblemCard from "@/src/components/problem/ProblemCard";
+import ProblemSkeleton from "@/src/components/problem/ProblemSkeleton";
 
 // [V2] Services & Utils
 import { getSubjects } from "@/src/services/subject";
@@ -32,6 +34,7 @@ export default function ProblemPage() {
 
     // --- State: 데이터 (V2 타입) ---
     const [problems, setProblems] = useState<Problem[]>([]);
+    const [isLoading, setIsLoading] = useState(false); // Loading state added
 
     // --- State: 모달 및 입력 폼 ---
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,10 +55,15 @@ export default function ProblemPage() {
 
     // --- Helpers ---
     const fetchProblems = async (examId: number) => {
+        setIsLoading(true);
         try {
             const list = await getProblemsV2(examId); // [V2] API 호출
             setProblems(list);
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const fetchExams = async (subId: number, year: number) => {
@@ -263,46 +271,29 @@ export default function ProblemPage() {
 
             {/* 리스트 영역 */}
             <div className="grid gap-6">
-                {problems.length === 0 ? (
+                {isLoading ? (
+                    // Loading State: Show 3 Skeletons
+                    Array.from({ length: 3 }).map((_, i) => <ProblemSkeleton key={i} />)
+                ) : problems.length === 0 ? (
                     <div className="text-center py-20 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-300">
                         <Search size={48} className="mx-auto mb-4 opacity-20" />
-                        <p className="text-lg mt-2">문제가 없습니다.</p>
-                        <p className="text-sm">시험을 선택하거나 새로운 문제를 등록해주세요.</p>
+                        <p className="text-lg mt-2 font-medium">문제가 없습니다.</p>
+                        <p className="text-sm mb-6">새로운 문제를 등록하여 시작해보세요.</p>
+                        <button
+                            onClick={openCreate}
+                            className="text-blue-600 font-bold hover:underline"
+                        >
+                            새 문제 등록하기
+                        </button>
                     </div>
                 ) : (
                     problems.map((p) => (
-                        <div key={p.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition">
-                            <div className="bg-gray-50 px-5 py-3 border-b border-gray-100 flex justify-between items-center">
-                                <span className="font-bold text-blue-700 bg-blue-100 px-3 py-1 rounded-lg text-sm">No. {p.number}</span>
-                                <div className="flex gap-2">
-                                    <button onClick={() => openUpdate(p)} className="p-2 text-gray-500 hover:text-blue-600 rounded-lg hover:bg-white transition"><Edit size={18} /></button>
-                                    <button onClick={() => onDelete(p.id)} className="p-2 text-gray-500 hover:text-red-600 rounded-lg hover:bg-white transition"><Trash2 size={18} /></button>
-                                </div>
-                            </div>
-                            <div className="p-6">
-                                {/* [V2] BlockRenderer 사용 (HTML 렌더링 대신) */}
-                                <div className="mb-6">
-                                    <BlockRenderer blocks={p.content} />
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-2 mb-4">
-                                    {p.choices.map((c: Choice) => (
-                                        <div key={c.number} className={`flex items-start p-3 rounded-xl border ${c.isAnswer ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100'}`}>
-                                            <span className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold mr-3 ${c.isAnswer ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'}`}>{c.number}</span>
-                                            <span className={`text-sm ${c.isAnswer ? 'font-bold text-green-800' : 'text-gray-700'}`}>{c.content}</span>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {p.explanation && p.explanation.length > 0 && (
-                                    <div className="bg-amber-50 p-4 rounded-xl text-sm text-gray-800 border border-amber-100 mt-4">
-                                        <strong className="block text-amber-800 mb-2 font-bold">💡 해설</strong>
-                                        {/* [V2] BlockRenderer 사용 */}
-                                        <BlockRenderer blocks={p.explanation} />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        <ProblemCard
+                            key={p.id}
+                            problem={p}
+                            onEdit={() => openUpdate(p)}
+                            onDelete={onDelete}
+                        />
                     ))
                 )}
             </div>
