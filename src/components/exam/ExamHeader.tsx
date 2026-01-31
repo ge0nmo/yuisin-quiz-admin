@@ -23,9 +23,9 @@ export default function ExamHeader({
     return (
         <div className="sticky top-0 z-50 mb-6 rounded-2xl border border-gray-200 bg-white/80 p-4 shadow-sm backdrop-blur-md transition-all">
             <div className="flex flex-wrap items-center gap-4">
-                <h1 className="mr-2 text-xl font-bold text-gray-900">시험 관리</h1>
+                {/*<h1 className="mr-2 text-xl font-bold text-gray-900">시험 관리</h1>*/}
 
-                <div className="h-6 w-px bg-gray-300 mx-2 hidden sm:block"></div>
+                {/*<div className="h-6 w-px bg-gray-300 mx-2 hidden sm:block"></div>*/}
 
                 <select
                     className="min-w-[150px] rounded-xl border border-gray-200 bg-white/50 p-2.5 text-sm font-medium text-gray-900 outline-none transition hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
