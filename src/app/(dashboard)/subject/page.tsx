@@ -93,7 +93,7 @@ export default function SubjectPage() {
                 <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 text-sm uppercase">
                         <tr>
-                            <th className="p-5 w-24 text-center font-bold">ID</th>
+                            <th className="p-5 w-24 text-center font-bold">순번</th>
                             <th className="p-5 font-bold">과목명</th>
                             <th className="p-5 w-32 text-center font-bold">관리</th>
                         </tr>
@@ -112,9 +112,9 @@ export default function SubjectPage() {
                                 </td>
                             </tr>
                         ) : (
-                            subjects.map((sub) => (
+                            subjects.map((sub, index) => (
                                 <tr key={sub.id} className="hover:bg-gray-50 transition group">
-                                    <td className="p-5 text-center text-gray-500">{sub.id}</td>
+                                    <td className="p-5 text-center text-gray-500">{index + 1}</td>
                                     <td className="p-5">
                                         <button
                                             onClick={() => goToExamPage(sub)}

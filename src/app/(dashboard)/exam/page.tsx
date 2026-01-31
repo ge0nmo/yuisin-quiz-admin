@@ -167,6 +167,7 @@ export default function ExamPage() {
                     {/* [수정] 헤더 텍스트 색상 text-gray-900 및 font-bold 명시 */}
                     <thead className="bg-gray-50 border-b border-gray-200 text-gray-900 text-sm uppercase">
                         <tr>
+                            <th className="p-4 w-16 text-center font-bold">순번</th>
                             <th className="p-4 w-32 text-center font-bold">연도</th>
                             <th className="p-4 font-bold">시험 명칭</th>
                             <th className="p-4 w-40 text-center font-bold">관리</th>
@@ -181,7 +182,7 @@ export default function ExamPage() {
                             </tr>
                         ) : exams.length === 0 ? (
                             <tr>
-                                <td colSpan={3} className="p-12 text-center text-gray-400">
+                                <td colSpan={4} className="p-12 text-center text-gray-400">
                                     <div className="flex flex-col items-center gap-3">
                                         <Search size={40} className="text-gray-300" />
                                         <p>{selectedSubjectId ? "등록된 시험이 없습니다." : "과목을 선택해주세요."}</p>
@@ -189,8 +190,11 @@ export default function ExamPage() {
                                 </td>
                             </tr>
                         ) : (
-                            exams.map((exam) => (
+                            exams.map((exam, index) => (
                                 <tr key={exam.id} className="hover:bg-blue-50/50 transition-colors group">
+                                    <td className="p-4 text-center text-gray-500 font-medium">
+                                        {index + 1}
+                                    </td>
                                     <td className="p-4 text-center">
                                         {/* [수정] 뱃지 텍스트 색상 text-gray-900 명시 */}
                                         <span className="inline-block bg-gray-100 text-gray-900 text-xs font-bold px-2.5 py-1 rounded-full border border-gray-200">
