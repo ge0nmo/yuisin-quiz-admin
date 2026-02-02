@@ -50,62 +50,67 @@ export default function QuestionListPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 text-sm uppercase">
-                    <tr>
-                        <th className="p-4 w-16 text-center font-bold">ID</th>
-                        <th className="p-4 w-32 text-center font-bold">상태</th>
-                        <th className="p-4 font-bold">제목</th>
-                        <th className="p-4 w-32 text-center font-bold">작성자</th>
-                        <th className="p-4 w-32 text-center font-bold">작성일</th>
-                        <th className="p-4 w-20 text-center font-bold">관리</th>
-                    </tr>
+                        <tr>
+                            <th className="p-4 w-16 text-center font-bold">순번</th>
+                            <th className="p-4 w-32 text-center font-bold">상태</th>
+                            <th className="p-4 font-bold">제목</th>
+                            <th className="p-4 w-32 text-center font-bold">작성자</th>
+                            <th className="p-4 w-32 text-center font-bold">작성일</th>
+                            <th className="p-4 w-20 text-center font-bold">관리</th>
+                        </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                    {questions.length === 0 ? (
-                        <tr>
-                            <td colSpan={6} className="p-10 text-center text-gray-400">
-                                등록된 질문이 없습니다.
-                            </td>
-                        </tr>
-                    ) : (
-                        questions.map((q) => (
-                            <tr
-                                key={q.id}
-                                onClick={() => router.push(`/question/${q.id}`)}
-                                className="hover:bg-gray-50 transition cursor-pointer"
-                            >
-                                <td className="p-4 text-center text-gray-500">{q.id}</td>
-                                <td className="p-4 text-center">
-                                    {q.answeredByAdmin ? (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
-                        <CheckCircle2 size={12} /> 답변완료
-                      </span>
-                                    ) : (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500">
-                        <XCircle size={12} /> 대기중
-                      </span>
-                                    )}
-                                </td>
-                                <td className="p-4">
-                                    <div className="font-bold text-gray-900 mb-1">{q.title}</div>
-                                    <div className="text-xs text-gray-400 flex items-center gap-1">
-                                        <MessageCircle size={12} /> 댓글 {q.answerCount}
-                                    </div>
-                                </td>
-                                <td className="p-4 text-center text-gray-700 font-medium">{q.username}</td>
-                                <td className="p-4 text-center text-gray-500 text-sm">
-                                    {new Date(q.createdAt).toLocaleDateString()}
-                                </td>
-                                <td className="p-4 text-center">
-                                    <button
-                                        onClick={(e) => handleDelete(e, q.id)}
-                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
+                        {questions.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="p-10 text-center text-gray-400">
+                                    등록된 질문이 없습니다.
                                 </td>
                             </tr>
-                        ))
-                    )}
+                        ) : (
+                            questions.map((q, index) => {
+                                const size = pageInfo?.size || 10;
+                                const globalIndex = (page - 1) * size + index + 1;
+
+                                return (
+                                    <tr
+                                        key={q.id}
+                                        onClick={() => router.push(`/question/${q.id}`)}
+                                        className="hover:bg-gray-50 transition cursor-pointer"
+                                    >
+                                        <td className="p-4 text-center text-gray-500">{globalIndex}</td>
+                                        <td className="p-4 text-center">
+                                            {q.answeredByAdmin ? (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                                                    <CheckCircle2 size={12} /> 답변완료
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500">
+                                                    <XCircle size={12} /> 대기중
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="font-bold text-gray-900 mb-1">{q.title}</div>
+                                            <div className="text-xs text-gray-400 flex items-center gap-1">
+                                                <MessageCircle size={12} /> 댓글 {q.answerCount}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-center text-gray-700 font-medium">{q.username}</td>
+                                        <td className="p-4 text-center text-gray-500 text-sm">
+                                            {new Date(q.createdAt).toLocaleDateString()}
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <button
+                                                onClick={(e) => handleDelete(e, q.id)}
+                                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -120,8 +125,8 @@ export default function QuestionListPage() {
                         이전
                     </button>
                     <span className="text-sm font-medium text-gray-900">
-            {page} / {pageInfo.totalPages || 1}
-          </span>
+                        {page} / {pageInfo.totalPages || 1}
+                    </span>
                     <button
                         disabled={page >= pageInfo.totalPages}
                         onClick={() => setPage(page + 1)}
