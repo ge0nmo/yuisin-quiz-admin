@@ -8,7 +8,7 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import Underline from '@tiptap/extension-underline';
 import Highlight from '@tiptap/extension-highlight';
 import TextAlign from '@tiptap/extension-text-align';
-import { useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import {
     ImageIcon, Bold, Italic, Strikethrough, Underline as UnderlineIcon,
     Baseline, Highlighter, Undo2, Redo2,
@@ -23,10 +23,6 @@ interface TiptapEditorProps {
     minHeight?: string;
 }
 
-// ---------------------------------------------------------------------------
-// Helper Component: Toolbar Button
-// Defined outside to avoid re-creation on every render (Performance & Lint Fix)
-// ---------------------------------------------------------------------------
 const ToolbarButton = ({ onClick, isActive, icon: Icon, title }: { onClick: () => void, isActive?: boolean, icon: any, title: string }) => (
     <button
         onClick={onClick}
@@ -44,7 +40,7 @@ export default function TiptapEditor({ value, onChange, placeholder, minHeight =
         extensions: [
             StarterKit,
             TextAlign.configure({
-                types: ['heading', 'paragraph'],
+                types: ['heading', 'paragraph', 'image'],
             }),
             TextStyle,
             Color,
@@ -69,7 +65,15 @@ export default function TiptapEditor({ value, onChange, placeholder, minHeight =
         },
         editorProps: {
             attributes: {
-                class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none text-gray-900 leading-relaxed px-2 max-w-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5'
+                // [수정됨] .replace(/\s+/g, ' ').trim() 을 추가하여 줄바꿈 문자를 제거했습니다.
+                class: `
+                    prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none 
+                    text-gray-900 leading-relaxed px-2 max-w-none 
+                    
+                    [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5
+                    
+                    [&_img]:max-w-sm [&_img]:rounded-lg [&_img]:border [&_img]:border-gray-200 [&_img]:shadow-sm [&_img]:my-4
+                `.replace(/\s+/g, ' ').trim()
             },
             handlePaste: (view, event, slice) => {
                 const items = Array.from(event.clipboardData?.items || []);
@@ -137,18 +141,14 @@ export default function TiptapEditor({ value, onChange, placeholder, minHeight =
     if (!editor) return null;
 
     return (
-        <div className="border border-gray-300 rounded-lg overflow-hidden bg-white flex flex-col shadow-sm">
-            {/* Toolbar */}
-            <div className="bg-gray-50 border-b border-gray-200 p-2 flex gap-1 items-center flex-wrap select-none">
-
-                {/* History */}
+        <div className="border border-gray-300 rounded-lg overflow-hidden bg-white flex flex-col shadow-sm focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
+            <div className="bg-gray-50 border-b border-gray-200 p-2 flex gap-1 items-center flex-wrap select-none sticky top-0 z-10">
                 <div className="flex gap-0.5 mr-2">
                     <ToolbarButton onClick={() => editor.chain().focus().undo().run()} icon={Undo2} title="실행 취소" />
                     <ToolbarButton onClick={() => editor.chain().focus().redo().run()} icon={Redo2} title="다시 실행" />
                 </div>
                 <div className="w-px h-5 bg-gray-300 mx-1"></div>
 
-                {/* Text Style */}
                 <div className="flex gap-0.5">
                     <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} icon={Bold} title="굵게" />
                     <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} icon={Italic} title="기울임" />
@@ -157,7 +157,6 @@ export default function TiptapEditor({ value, onChange, placeholder, minHeight =
                 </div>
                 <div className="w-px h-5 bg-gray-300 mx-1"></div>
 
-                {/* Alignment */}
                 <div className="flex gap-0.5">
                     <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('left').run()} isActive={editor.isActive({ textAlign: 'left' })} icon={AlignLeft} title="왼쪽 정렬" />
                     <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('center').run()} isActive={editor.isActive({ textAlign: 'center' })} icon={AlignCenter} title="가운데 정렬" />
@@ -165,14 +164,12 @@ export default function TiptapEditor({ value, onChange, placeholder, minHeight =
                 </div>
                 <div className="w-px h-5 bg-gray-300 mx-1"></div>
 
-                {/* Lists */}
                 <div className="flex gap-0.5">
                     <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} isActive={editor.isActive('bulletList')} icon={List} title="목록" />
                     <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} isActive={editor.isActive('orderedList')} icon={ListOrdered} title="번호 목록" />
                 </div>
                 <div className="w-px h-5 bg-gray-300 mx-1"></div>
 
-                {/* Color & Highlight */}
                 <div className="flex gap-1 items-center">
                     <div className="relative flex items-center justify-center w-8 h-8 rounded hover:bg-gray-200 transition cursor-pointer overflow-hidden group" title="글자 색상">
                         <Baseline size={18} className="text-gray-600 group-hover:text-gray-900 z-0" />
@@ -197,7 +194,6 @@ export default function TiptapEditor({ value, onChange, placeholder, minHeight =
                 </div>
                 <div className="w-px h-5 bg-gray-300 mx-1"></div>
 
-                {/* Image */}
                 <button
                     onClick={addImage}
                     className="px-2 py-1.5 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 flex items-center gap-1.5 text-xs font-semibold transition"
